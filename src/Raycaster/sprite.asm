@@ -42,7 +42,7 @@ CurrentBuffer      := mpLcdLpbase
 stackPointer:
 rb 3
 
-_setScreenBufferOffset:
+_setScreenBufferOffset:;* move math to setScreen
 	;sets start of draw location (offset for y screen render position)
 	;start of buffer + (_screenHeight-height)*320 + _yOffset + x
 	ld a, (_screenHeight)
@@ -337,6 +337,7 @@ _drawSpriteScaledUpClipped:;height, i
 	sbc hl, de
 	ld sp, hl
 
+
 	ld hl, (screenBufferOffset)
 	ld de, (screenX)
 	add hl, de; adds x offset
@@ -350,6 +351,7 @@ _drawSpriteScaledUpClipped:;height, i
 	ld b, a
 	ld c, a
 	ld iy, 0xffffff
+
 	exx
 		sbc hl, hl
 		ld a, (_screenHeight)

@@ -11,7 +11,7 @@ public	_castScreen
 macro setNextOctant
 	ld b, a
 	inc b
-	ld c, ANGLEMULTIPLIER
+	ld c, ANGLE_MULTIPLIER
 	mlt bc
 	ld b, 45
 	mlt bc
@@ -47,49 +47,33 @@ _castScreen:
 	push bc
 	push bc
 
-	;copies size to memory accessable by ix for faster access and loading into 8 bit registers
+	;copies values to memory accessable by ix for faster access and loading into 8 bit registers
 	ld hl, (_spriteSize)
 	ld (spriteSize), hl
 	ld hl, (_spriteSizeReciprocal)
 	ld (spriteSizeReciprocal), hl
-	ld hl, (_spriteBPP)
-	ld (spriteBPP), hl
 	ld hl, (_drawMode)
 	ld (drawMode), hl
-	ld hl, (_renderFovAngle)
-	bit 0, (drawMode)
-	jr nz, noFovAdjust
-		ld d, h
-		ld e, 3
-		mlt de
-		ld h, e
-		ld a, l
-		add a, l
-		jr nc, $+2+1
-			inc h
-		add a, l
-		jr nc, $+2+1
-			inc h
-		ld l, a
-	noFovAdjust:
-	ld (renderFovAngle), hl
+	ld hl, (_castAngleIncrement)
+	ld (castAngleIncrement), hl
+	ld hl, (_fovAngleIncrement)
+	ld (fovAngleIncrement), hl
+
 	;sets initial and end x positions based on the render width and x position
 	ld de, (_screenWidth)
 	ld hl, (_xOffset)
 	ld (screenX), hl
 	add hl, de
-			bit 0, (drawMode);lowers the end position if third res so when width is not divisible by 3 it stops early instead of drawing over
-			jr nz, $+2+1+1
-				dec hl
-				dec hl
 	ld (screenXEnd), hl
-	;sets the start of the fisheye correction to the starting angle (center of array - width*FOV/2)
+
+	;sets the start of the fisheye correction array to the starting angle (center of array - screenWidth*FOV/2)
 	ld bc, (_screenWidth)
 	srl b
 	rr c
-	ld hl, (_renderFovAngle)
+	ld hl, (fovAngleIncrement)
 	call HL_Times_BC_ShiftedDown
-	ld de, 360*ANGLEMULTIPLIER/2
+
+	ld de, 120*ANGLE_MULTIPLIER/2
 	ex hl, de
 	sbc hl, de
 	ex hl, de
@@ -97,33 +81,38 @@ _castScreen:
 	add hl, de
 	add hl, de
 	ld (fishEyeCorrectionTable), hl
-	;sets the starting angle to be cast as direction-((screen width)/2)*fov
+
+	;sets the starting angle of the first line to be cast as direction-((screen width)/2)*fov increment
 	ld bc, (_screenWidth)
 	srl b
 	rr c
-	ld hl, (_renderFovAngle)
+	ld hl, (_castAngleIncrement)
 	call HL_Times_BC_ShiftedDown
-	ex hl, de
+	ex hl, de	
 	ld hl, (direction)
 	sbc hl, de
+
 	;corrects the angle if it becomes negative assuming direction was originally valid
 	jr nc, $+2+4+1
-	ld de, 360*ANGLEMULTIPLIER+1
-	add hl, de
+		ld de, 360*ANGLE_MULTIPLIER+1
+		add hl, de
 	ld (castAngle), hl
 	
+	;loads the starting octant code 
 	call getOctant
 	ld (octant), a
 	setNextOctant
-	;copies some functions to the cursor ram location to execute faster
-	call _copyOctantToFastRam;copying the octant allows it to be called without checking the current octant except at the start and when the octant changes
+
+	;copies some functions to the screen cursor ram location to execute faster
+	call _copyOctantToFastRam;copying the octant also allows it to be called without checking the current octant except at the start and when the octant changes
 	call _copyDiv16ToFastRam
 	call setupSpriteFastRam
 	call _setScreenBufferOffset
 
 	
 	xor a, a
-	ld (angleIncCounter), a
+	ld (castAngleIncrementCounter), a
+	ld (fovAngleIncrementCounter), a
 	mainLoopStart:
 		;cast ray
 		call OCTANT_FAST_RAM_START;returns a = partial position and a' = wall type
@@ -157,32 +146,10 @@ _castScreen:
 		add hl, de
 		ld bc, (hl)
 
-		ld a, (renderFovAngle)
-		;ld a, e
-
-		sbc hl, hl
-		ld l, (renderFovAngle+1)
-		add a, (angleIncCounter)
-		ld (angleIncCounter), a
-		jr nc, $+2+1
-			inc d
-		
-		ex hl, de
-		;ld e, 1
-		;bit 0, (drawMode)
-		;jr nz, $+2+2
-		;	ld e, 3
-		;mlt de
-
-		ld hl, (castAngle)
-			add hl, de
-		ld (castAngle), hl
 		;corrects the distance to remove the fisheye effect 
 		ld hl, (fishEyeCorrectionTable)
-			add hl, de
-			add hl, de
-		ld  (fishEyeCorrectionTable), hl
 		ld de, (hl)
+		ld hl, (castAngleIncrement)
 
 		ld hl, 0
 		ld h, c
@@ -201,24 +168,19 @@ _castScreen:
 		ex hl, de
 		
 		ld bc, (distance)
-		call DIV_16		
+		call DIV_16		;HL=DE/BC
 		
-		;corrects the distance to remove the FOV effect
+		;corrects the height to remove the FOV effect
 		ld bc, (_heightCorrection)
 		call HL_Times_BC_ShiftedDown
 
 		ld (wallHeight), hl
 
 		;calls the drawing routine based on the current drawing mode
-		bit 0, (drawMode)
-		call z, thirdResDraw
-		bit 0, (drawMode)
-		jr z, thirdResSkip
-			bit 1, (drawMode)
-			call z, line
-			bit 1, (drawMode)
-			call nz, drawSpriteScaled
-		thirdResSkip:
+		bit 1, (drawMode)
+		call z, line
+		bit 1, (drawMode)
+		call nz, drawSpriteScaled
 
 		;sets up variables for next loop and exits if the end of the screen has been drawn
 		ld hl, (screenX)
@@ -230,13 +192,34 @@ _castScreen:
 		sbc hl, de
 		jp nc, exit
 
+		;moves the counter to see if the angle needs incremented more this iteration to fake decimal precision then adds the needed amount to the angle
+		;moves the fisheye correction which is limited to 120 deg 
+		ld de, 0
+		ld e, (fovAngleIncrement+1)
+		ld a, (fovAngleIncrement)
+		add a, (fovAngleIncrementCounter)
+		ld (fovAngleIncrementCounter), a
+		jr nc, $+2+1
+			inc e
+		ld hl, (fishEyeCorrectionTable)
+		add hl, de
+		add hl, de
+		ld  (fishEyeCorrectionTable), hl
+
+		;moves the cast angle counter and cast angle by needed amount for the
+		ld e, (castAngleIncrement+1)
+		ld a, (castAngleIncrement)
+		add a, (castAngleIncrementCounter)
+		ld (castAngleIncrementCounter), a
+		jr nc, $+2+1
+			inc e
 		ld hl, (castAngle)
+		add hl, de
+		ld (castAngle), hl
 
 		;checks if octant has changed and if not continues looping
 		ld bc, (nextOctant)
-		or a, a
 		sbc hl, bc
-
 	jp c, mainLoopStart
 	
 	;sets up next octant before returning to loop
@@ -258,34 +241,10 @@ _castScreen:
 	ld IX, (saveIX)
 	ld IY, (saveIY)
 ret
-thirdResDraw:
-	;draws 3 rows of the wall (either scaled sprite or lines)
-	bit 1, (drawMode)
-	jr nz, $+2+3+1+1+3+3
-		ld hl, (screenX)
-		inc hl
-		inc hl
-		ld (screenX), hl
-		ld hl, (wallHeight)
-	bit 1, (drawMode)
-	jp z, lineThirdRes
-
-	ld hl, (wallHeight)
-	call drawSpriteScaled
-	
-	ld hl, (screenX)
-	inc hl
-	ld (screenX), hl
-	ld hl, (wallHeight)
-
-	call drawSpriteScaled
-	ld hl, (screenX)
-	inc hl
-	ld (screenX), hl
-	ld hl, (wallHeight)
-	
-	jp drawSpriteScaled
-ret
+nextAngle:
+db 0
+db 0
+db 0
 drawSpriteScaled:
 	;jumps to drawing routine based on if it needs to be clipped and if the sprite is scaling up or down
 	or a, a
@@ -306,7 +265,8 @@ getOctant:
 ;hl = angle
 ;out:
 ;a = octant angle is in
-	ld de, 45*ANGLEMULTIPLIER
+	
+	ld de, 45*ANGLE_MULTIPLIER
 	xor a,a
 	sbc	hl ,de
 	ret c;0
@@ -343,6 +303,7 @@ db 0
 saveSP:
 dw 0
 db 0
+		extern _fovAngleIncrement
 
 extern lineThirdRes
 extern _drawMode
@@ -367,8 +328,7 @@ extern	_copyOctantToFastRam
 
 extern _spriteSizeReciprocal
 extern _spriteSize
-extern _spriteBPP
-extern _renderFovAngle
+extern _castAngleIncrement
 
 
 extern HL_Times_BC_ShiftedDown

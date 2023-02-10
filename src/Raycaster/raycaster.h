@@ -1,23 +1,20 @@
 #ifndef RAYCASTER_H
 #define RAYCASTER_H
-#define ANGLEMULTIPLIER 8//how many steps there are between each degree. Lower values will create a smaller appvar higher values can look smoother. Should probably be left at 8 but if changed raycaster.inc also needs to be changed
-
-extern void linkTilemap(uint8_t**, int numberOfSprites, uint8_t size, uint8_t bpp);
-extern void setBPP(int bpp);
-extern void setScreen(int x, int y, int width, int height, int fov);
-extern uint8_t initializeEngine(uint8_t *map, int witdth, int height, int textured);
-extern void castScreen(int, int, int);
-
-extern uint8_t **spriteTilemap;
-extern int renderFovAngle;
-extern int renderFov;
-extern int spriteBPP;
-extern int numberOfSprites;
-extern int spriteSize;
+#include <stdint.h>
+#define ANGLE_MULTIPLIER 10 //how many steps there are between each degree. Lower values will create a smaller appvar higher values can look smoother. Should probably be left at 8 but if changed raycaster.inc also needs to be changed
+#define FOV_LIMIT 360*2//anything higher would require more angle bounds checking
+#define MAX_FOV_FISHEYE_CORRECTION 120//any fov past this in degrees will be significantyl warped
 enum DrawMode{//textured(T/F) 1/3res(T/F)
-	fullResTextured = 0b11,
-	fullResLine = 0b01,
-	thirdResTextured = 0b10,
-	thirdResLine = 0b00,
+	textured = 0b11,
+	line = 0b01,
 };
+
+uint8_t initializeEngine(uint8_t *map, int mapRowSize, uint8_t **tilemap, enum DrawMode mode, int fov);
+void setScreen(int windowX, int windowY, int windowWidth, int windowHeight, uint8_t bpp);
+void castScreen(int playerX, int playerY, int playerDirection);
+
+void changeTilemap(uint8_t **tilemap);
+void changeDrawMode(enum DrawMode Mode);
+void changeFOV(int fov);
+
 #endif

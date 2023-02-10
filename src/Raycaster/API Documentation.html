@@ -1,0 +1,57 @@
+<!doctype html>
+<html>
+    <head>
+        <title>Raycaster API</title>
+        <style>
+            .macro{
+            }
+            .macro hr{
+                border-style: solid;
+                border-color: darkgrey;
+                border-width: 2px;
+            }
+        </style>
+    </head>
+
+    <body>
+        <section class="macro">
+            <dl>
+                <h1><code>uint8_t initializeEngine(uint8_t *map, int mapRowSize, uint8_t **tilemap, uint8_t bpp, enum DrawMode mode, uint8_t fov)</code></h1>
+                <dt>Parameters</dt>
+                <dd><table>
+                    <tr>
+                        <th>uint8_t *map</th>
+                        <td>-</td>
+                        <td>A pointer the the map data where 0 represents no wall and any other 8 bit value corresponds to a sprite in the tilemap or pallet color if sprites are not being used.</td>
+                    </tr>
+                    <tr>
+                        <th>int mapRowSize</th>
+                        <td>-</td>
+                        <td>The number of elements in each row of the map. This would be the second value in a 2d array.</td>
+                    </tr>
+                    <tr>
+                        <th>uint8_t **tilemap</th>
+                        <td>-</td>
+                        <td>A pointer to a tilemap of square sprites which should be rotated 90 degrees clockwise of how it should be displayed. This can be null if sprites are not being used.</td>
+                    </tr>
+                    <tr>
+                        <th>uint8_t bpp</th>
+                        <td>-</td>
+                        <td>The bit per pixel mode of the screen (8, 4, 2, 1). This should probably be 8 if the graphx library is used. For values other than 8 walls will be rendered at half resolution</td>
+                    </tr>
+                    <tr>
+                        <th>enum DrawMode mode</th>
+                        <td>-</td>
+                        <td>The drawing mode of the engine either 'textured' for sprite based walls or 'line' for color based walls</td>
+                    </tr>
+                    <tr>
+                        <th>uint8_t fov</th>
+                        <td>-</td>
+                        <td>The field of view in degrees, can be any integer 0-180</td>
+                    </tr>
+                </table></dd>
+            </dl>
+            <hr>
+        </section>
+    </body>
+</html>

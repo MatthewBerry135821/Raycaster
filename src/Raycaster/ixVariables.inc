@@ -33,8 +33,8 @@ declare wallType, 1
 
 declare spriteSize, 3
 declare spriteSizeReciprocal, 3
-declare spriteBPP, 3
-declare angleIncCounter, 3
 declare drawMode, 3
-declare renderFovAngle, 3
-declare temp, 3
+declare castAngleIncrement, 3
+declare castAngleIncrementCounter, 3
+declare fovAngleIncrement, 3
+declare fovAngleIncrementCounter, 3

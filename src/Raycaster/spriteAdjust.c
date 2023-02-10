@@ -1,11 +1,12 @@
-#include <stdbool.h>
-#include <stddef.h>
 #include <stdint.h>
-
 #include "raycaster.h"
-#include <debug.h>
+#include"spriteAdjust.h"
 
-void convertSpriteBPP(int bpp){//sets sprite to be used with different bpp. the same color will be repeated within a byte to draw multiple pixels at once effectively lowering the resolution
+extern uint8_t **spriteTilemap;
+extern int spriteSize;
+extern int spriteBPP;
+
+void convertSpriteBPP(const int bpp, const int numberOfSprites){//sets sprite to be used with different bpp. the same color will be repeated within a byte to draw multiple pixels at once effectively lowering the resolution
 	int mask = 1;
 	for(int i = bpp; i > 1; i--){
 		mask <<= 1;

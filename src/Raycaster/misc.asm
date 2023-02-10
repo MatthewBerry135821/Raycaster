@@ -16,7 +16,6 @@ _setBPP:
 	pop de
 	push de
 	push bc
-	ld (_spriteBPP), de
 
 	ld	hl,0xE30000+0x018+0
 	ld	a,(hl)
@@ -166,7 +165,6 @@ _copyDiv16ToFastRam:
 ret
 
 
-extern _spriteBPP
 extern SCALE_UP_SIZE
 extern SCALE_UP_CLIPPED_SIZE
 extern SCALE_UP_LOOP_SIZE

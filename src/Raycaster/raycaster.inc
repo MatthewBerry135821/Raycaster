@@ -1,2 +1,2 @@
-ANGLEMULTIPLIER equ 8;how many steps there are between each degree. Lower values will create a smaller appvar higher values can look smoother. Should probably be left at 8 but if changed raycaster.h also needs to be changed
+ANGLE_MULTIPLIER equ 10;how many steps there are between each degree. Lower values will create a smaller appvar higher values can look smoother. Should probably be left at 8 but if changed raycaster.h also needs to be changed
 MAX_SCALE := 120;Caps the scale and should be left at 120
