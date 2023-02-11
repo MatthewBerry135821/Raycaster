@@ -9,8 +9,8 @@ enum DrawMode{//textured(T/F) 1/3res(T/F)
 	line = 0b01,
 };
 
-uint8_t initializeEngine(uint8_t *map, int mapRowSize, uint8_t **tilemap, enum DrawMode mode, int fov);
-void setScreen(int windowX, int windowY, int windowWidth, int windowHeight, uint8_t bpp);
+uint8_t initializeEngine(uint8_t *map, int mapRowSize, uint8_t **tilemap, enum DrawMode mode);
+void setScreen(int windowX, int windowY, int windowWidth, int windowHeight, uint8_t bpp, int fov);
 void castScreen(int playerX, int playerY, int playerDirection);
 
 void changeTilemap(uint8_t **tilemap);

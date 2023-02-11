@@ -37,12 +37,11 @@ uint8_t createTables();//returns 0 on success
 extern void setBPP(int bpp);
 void calculateCastScreenValues();
 
-uint8_t initializeEngine(uint8_t *map, int mapSize, uint8_t **tilemap, enum DrawMode mode, int fov){//returns 0 on success
+uint8_t initializeEngine(uint8_t *map, int mapSize, uint8_t **tilemap, enum DrawMode mode){//returns 0 on success
 	drawMode = mode;
 	mapPtr = map;
 	mapRowSize = mapSize;
 	changeTilemap(tilemap);
-	changeFOV(fov);
 	if(loadTables() != 0){
 		createTables();
 		return loadTables();
@@ -50,8 +49,9 @@ uint8_t initializeEngine(uint8_t *map, int mapSize, uint8_t **tilemap, enum Draw
 	return 0;
 }
 
-void setScreen(int windowX, int windowY, int windowWidth, int windowHeight, uint8_t bpp){//sets the screen offsets and dimensions
+void setScreen(int windowX, int windowY, int windowWidth, int windowHeight, uint8_t bpp, int fov){//sets the screen offsets and dimensions
 	setBPP(bpp);
+	changeFOV(fov);
 	spriteBPP = bpp;
 	screenAddressingWidth = 320/(8/spriteBPP);
 	yOffset = windowY*320/(8/spriteBPP);
