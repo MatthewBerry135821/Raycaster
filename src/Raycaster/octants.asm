@@ -118,20 +118,21 @@ _copyOctantToFastRam:
 	ldir
 	ret
 
-macro octantTemplate xDirection, yDirection
-	;ld de, (castAngle)
-	;ld hl, 90*ANGLE_MULTIPLIER
-	;xor a, a
-	;sbc hl, de
-	;ex hl, de
+macro octantTemplate minorSign, majorSign, majorDirection
+	if majorDirection = y
+		minorDirection = x
+	else
+		minorDirection = y
+	end if
 	loadTangent
 
 	;finds the starting x position accounting for the starting y position being rounded to the side
 	;starting y will be rounded in the opposite direction as it is traveling
 	;starting x can be found by multiplying the y difference by tan and adding/subtracting it from x
 	;(((-yPartial-1)*tan)>>8) +/- x
-	ld a, (y)
-	if yDirection = -1
+
+	ld a, (majorDirection)
+	if majorSign = -1
 		neg
 		dec a
 	end if
@@ -140,67 +141,87 @@ macro octantTemplate xDirection, yDirection
 	mlt de
 	ld e, d
 	ld d, 0
-	ld hl, (x)
-	if xDirection = 1
+	ld hl, (minorDirection)
+	if minorSign = 1
 		sbc hl, de
 	else
 		add hl, de
 	end if
 
-	yMajorVariableSetup
+	if majorDirection = y
+		yMajorVariableSetup
+	else
+		xMajorVariableSetup
+	end if
 
-	if yDirection = -1
+	if majorSign = -1
 		inc b;if y is negative
 	end if
 
-	if xDirection = -1
+	if minorSign = -1
 		inc iyl; if x is negative
 		sbc a, c
 	else
 		add a, c
 	end if
 	
-	jr c, .moveX
+	jr c, .moveMinor
 	.loop:
 		ex af, af'
-		if yDirection = -1
-			dec hl;hl points to map position
-			dec b;tracks how much y moved
+		if majorSign = -1
+			if majorDirection = y
+				dec hl;hl points to map position
+			else
+				sbc hl, de
+			end if
+			dec b;tracks how much major dir moved
 		else
-			inc hl;hl points to map position
-			inc b;tracks how much y moved
+			if majorDirection = y
+				inc hl;hl points to map position
+			else
+				add hl, de
+			end if
+			inc b;tracks how much major dir moved
 		end if
 		cp a, (hl)
-		jr nz, .hitY
+		jr nz, .hitMajor
 
 		ex af, af'
-		if xDirection = -1
+		if minorSign = -1
 			sbc a, c
 		else
 			add a, c
 		end if
 	jr nc, .loop
-	.moveX:
+	.moveMinor:
 		ex af, af'
-		if xDirection = -1
-			sbc hl, de
-			dec iyl
+		if minorSign = -1
+			if majorDirection = y
+				sbc hl, de
+			else
+				dec hl;hl points to map position
+			end if
+			dec iyl;tracks how far minor dir has moved
 		else
-			add hl, de
+			if majorDirection = y
+				add hl, de
+			else
+				inc hl;hl points to map position
+			end if
 			inc iyl
 		end if
 		cp a, (hl)
 	jr z, .loop+1;+1 skips the ex af, af'
 
-	.hitX:
+	.hitMinor:
 		ld a, (hl)
 		ex af, af'
 		;find y distance traveled
 		xor a, a
 		ld e, a
 		ld d, iyl
-		ld hl, (x)
-		if xDirection = 1
+		ld hl, (minorDirection)
+		if minorSign = 1
 			ex hl, de
 		end if
 		sbc hl, de
@@ -209,39 +230,52 @@ macro octantTemplate xDirection, yDirection
 		call HL_Times_BC_ShiftedDown
 		
 		ld (distance), hl
-		ld a, (y)
+		ld a, (majorDirection)
 		
-		if yDirection = -1
+		if majorSign = -1
 			sub a, l
 		else
 			add a, l
 		end if
-		if xDirection = 1
-			neg;makes sprite always render in the same direction;(1+,-)(6+,+)()
+		if majorDirection = y
+			if minorSign = -1
+				neg;makes sprite always render in the same direction;(1+,-)(6+,+)()
+			end if
+		else
+			if minorSign = 1
+				neg;makes sprite always render in the same direction;(1+,-)(6+,+)()
+			end if
 		end if
 ret
-	.hitY:
+	.hitMajor:
 		ld a, (hl)
 		ex af, af'
 		;find x distance traveled
 		xor a, a
 		ld e, a
 		ld d, b
-		ld hl, (y)
-		if yDirection = 1
+		ld hl, (majorDirection)
+		if majorSign = 1
 			ex hl, de
 		end if
 		sbc hl, de
 		ld (distance), hl
 		;find the wall slice
 		calcPartialMovement
-		if xDirection = 1
-			add a, (x)
+		if minorSign = 1
+			add a, (minorDirection)
 		else
-			sub a, (x)
+			sub a, (minorDirection)
 		end if
-		if yDirection <> xDirection
-			neg;makes sprite always render in the same direction;(1+,-)(5-,+)()
+		
+		if majorDirection = y
+			if majorSign = minorSign
+				neg;makes sprite always render in the same direction;(1+,-)(5-,+)	(3-,-)(7+,+)
+			end if
+		else
+			if majorSign <> minorSign
+				neg;makes sprite always render in the same direction;(1+,-)(5-,+)	(3-,-)(7+,+)
+			end if
 		end if
 ret
 end macro
@@ -252,7 +286,7 @@ _octant1:
 	xor a, a
 	sbc hl, de
 	ex hl, de
-	octantTemplate 1, -1
+	octantTemplate 1, -1, y
 endOfOctant1:
 
 	
@@ -262,7 +296,7 @@ _octant2:
 	xor a, a
 	sbc hl, de
 	ex hl, de
-	octantTemplate -1, -1
+	octantTemplate -1, -1, y
 endOfOctant2:
 
 _octant5:
@@ -272,7 +306,7 @@ _octant5:
 	ex hl, de
 	sbc hl, de
 	ex hl, de
-	octantTemplate -1, 1
+	octantTemplate -1, 1, y
 endOfOctant5:
 
 _octant6:
@@ -281,153 +315,13 @@ _octant6:
 	xor a, a
 	sbc hl, de
 	ex hl, de
-	octantTemplate 1, 1
+	octantTemplate 1, 1, y
 endOfOctant6:
-	loadTangent
-
-	;sets rayX accounting for the difference between Y and rayY
-	ld a, (y)
-	ld e, a
-	ld d, c
-	mlt de
-	ld e, d
-	ld d, 0
-	ld hl, (x)
-	sbc hl, de
-
-	yMajorVariableSetup
-
-	;inc b;if y is negative
-	;inc iyl; if x is negative
-
-	add a, c
-	jr c, moveX6
-	loop6:
-		ex af, af'
-		inc hl
-		inc b
-		cp a, (hl)
-		jr nz, hitY6
-
-		ex af, af'
-		add a, c
-	jr nc, loop6
-	moveX6:
-		ex af, af'
-		add hl, de
-		inc iyl
-		cp a, (hl)
-	jr z, loop6+1;+1 skips the ex af, af'
-
-	hitX6:
-		ld a, (hl)
-		ex af, af'
-		;find y distance traveled
-		xor a, a
-		ld e, a
-		ld d, iyl
-		ex hl, de
-		ld de, (x)
-		sbc hl, de
-		;calc x distance traveled
-		ld bc, (tanReciprocalAngle)
-		call HL_Times_BC_ShiftedDown
-		
-		ld (distance), hl
-		ld a, (y)
-		add a, l
-		neg
-ret
-	hitY6:
-		ld a, (hl)
-		ex af, af'
-		;find x distance traveled
-		xor a, a
-		sbc hl, hl
-		ld h, b
-		ld de, (y)
-		sbc hl, de
-		ld (distance), hl
-		;find the wall slice
-		calcPartialMovement
-		add a, (x)
-		;neg
-ret
-;endOfOctant6:
-
 
 _octant0:;returns partial wall pos in a and wall type in a'
 	ld de, (castAngle);set angle as angle within octant
-	loadTangent
-
-	;sets rayY accounting for the difference between X and rayX
-	ld a, (x)
-	ld e, a
-	ld d, c
-	mlt de
-	ld e, d
-	ld d, 0
-	ld hl, (y)
-	add hl, de
-	
-	xMajorVariableSetup
-	;inc b;if x is negative
-	inc iyl; if y is negative
-
-	sbc a, c
-	jr c, moveY
-	loop:
-		ex af, af'
-		add hl, de
-		inc b
-		cp a, (hl)
-		jr nz, hitX
-
-		ex af, af'
-		sbc a, c
-	jr nc, loop
-	moveY:
-		dec hl
-		dec iyl
-		ex af, af'
-		cp a, (hl)
-	jr z, loop+1;+1 skips the ex af, af'
-
-	hitY:
-		ld a, (hl)
-		ex af, af'
-		;find y distance traveled
-		xor a, a
-		ld e, a
-		ld d, iyl
-		ld hl, (y)
-		sbc hl, de
-		;calc x distance traveled
-		ld bc, (tanReciprocalAngle)
-		call HL_Times_BC_ShiftedDown
-		
-		ld (distance), hl
-		ld a, l
-		add a, (x)
-		neg	
-ret
-	hitX:
-		ld a, (hl)
-		ex af, af'
-		;find x distance traveled
-		xor a, a
-		sbc hl, hl
-		ld h, b
-		ld de, (x)
-		sbc hl, de
-		ld (distance), hl
-		;find the wall slice
-		calcPartialMovement
-		sub a, (y)
-		;neg
-ret
-endOfOctant0:
-	
+	octantTemplate -1, 1, x
+endOfOctant0:	
 
 _octant3:
 	ld de, (castAngle);set angle as angle within octant
@@ -435,159 +329,16 @@ _octant3:
 	or a, a
 	sbc hl, de
 	ex hl,de
-	loadTangent
-
-	;sets rayY accounting for the difference between X and rayX
-	ld a, (x)
-		neg
-		dec a
-	ld e, a
-	ld d, c
-	mlt de
-	ld e, d
-	ld d, 0
-	ld hl, (y)
-	add hl, de
-	
-	xMajorVariableSetup
-
-	inc b;if x is negative
-	inc iyl; if y is negative
-	sub a, c
-	jr c, moveY3
-	loop3:
-		ex af, af'
-		sbc hl, de
-		dec b
-		cp a, (hl)
-		jr nz, hitX3
-
-		ex af, af'
-		sub a, c
-	jr nc, loop3
-	moveY3:
-		dec hl
-		dec iyl
-		ex af, af'
-		cp a, (hl)
-	jr z, loop3+1;+1 skips the ex af, af'
-
-	hitY3:
-		ld a, (hl)
-		ex af, af'
-
-		;find y distance traveled
-		xor a, a
-		ld e, a
-		ld d, iyl
-		
-		ld hl, (y)
-		sbc hl, de
-		;calc x distance traveled
-		ld bc, (tanReciprocalAngle)
-		call HL_Times_BC_ShiftedDown
-		
-		ld (distance), hl
-		ld a, l
-		sub a, (x)
-		;neg		
-ret
-		
-	hitX3:
-		ld a, (hl)
-		ex af, af'
-		;find x distance traveled
-		xor a, a
-		ld e, a
-		ld d, b
-		ld hl, (x)
-		sbc hl, de
-		ld (distance), hl
-		;find the wall slice
-		calcPartialMovement
-		sub a, (y)
-		neg
-ret
+	octantTemplate -1, -1, x
 endOfOctant3:
-
+	
 _octant4:
 	ld hl, (castAngle);set angle as angle within octant
 	ld de, 180*ANGLE_MULTIPLIER
 	or a, a
 	sbc hl, de
 	ex hl, de
-
-loadTangent
-	;sets rayY accounting for the difference between X and rayX
-	ld a, (x)
-		neg
-		dec a
-	ld e, a
-	ld d, c
-	mlt de
-	ld e, d
-	ld d, 0
-	ld hl, (y)
-	sbc hl, de
-
-	xMajorVariableSetup
-	;end up calculation/var setup
-
-	inc b;if x is negative
-	;inc iyl; if y is negative
-	add a, c
-	jr c, moveY4
-	loop4:
-		ex af, af'
-		sbc hl, de
-		dec b
-		cp a, (hl)
-		jr nz, hitX4
-
-		ex af, af'
-		add a, c
-	jr nc, loop4
-	moveY4:
-		inc hl
-		inc iyl
-		ex af, af'
-		cp a, (hl)
-	jr z, loop4+1;+1 skips the ex af, af'
-
-	hitY4:
-		ld a, (hl)
-		ex af, af'
-		;find y distance traveled
-		xor a, a
-		ld e, a
-		ld d, iyl
-		ld hl, (y)
-		ex hl, de
-		sbc hl, de
-		;calc x distance traveled
-		ld bc, (tanReciprocalAngle)
-		call HL_Times_BC_ShiftedDown
-		
-		ld (distance), hl
-		ld a, l
-		sub a, (x)
-		neg
-ret
-	hitX4:
-		ld a, (hl)
-		ex af, af'
-		;find x distance traveled
-		xor a, a
-		ld e, a
-		ld d, b
-		ld hl, (x)
-		sbc hl, de
-		ld (distance), hl
-		;find the wall slice
-		calcPartialMovement
-		add a, (y)
-		;neg
-ret
+	octantTemplate 1, -1, x
 endOfOctant4:
 
 _octant7:
@@ -597,75 +348,7 @@ _octant7:
 	sbc hl, de
 
 	ex hl, de
-	loadTangent
-
-	;sets rayY accounting for the difference between X and rayX
-	ld a, (x)
-	ld e, a
-	ld d, c
-	mlt de
-	ld e, d
-	ld d, 0
-	ld hl, (y)
-	sbc hl, de
-
-	xMajorVariableSetup
-	
-	;inc b;if x is negative
-	;inc iyl; if y is negative
-
-	adc a, c
-	jr c, moveY7
-	loop7:
-		ex af, af'
-		add hl, de
-		inc b
-		cp a, (hl)
-		jr nz, hitX7
-
-		ex af, af'
-		adc a, c
-	jr nc, loop7
-	moveY7:
-		inc hl
-		inc iyl
-		ex af, af'
-		cp a, (hl)
-	jr z, loop7+1;+1 skips the ex af, af'
-
-	hitY7:
-		ld a, (hl)
-		ex af, af'
-		;find y distance traveled
-		xor a, a
-		ld e, a
-		ld d, iyl
-		ex hl, de
-		ld de, (y)
-		sbc hl, de
-		;calc x distance traveled
-		ld bc, (tanReciprocalAngle)
-		call HL_Times_BC_ShiftedDown
-		
-		ld (distance), hl
-		ld a, l
-		add a, (x)	
-ret
-	hitX7:
-		ld a, (hl)
-		ex af, af'
-		;find x distance traveled
-		xor a, a
-		sbc hl, hl
-		ld h, b
-		ld de, (x)
-		sbc hl, de
-		ld (distance), hl
-		;find the wall slice
-		calcPartialMovement
-		add a, (y)
-		neg				
-ret
+	octantTemplate 1, 1, x
 endOfOctant7:
 
 

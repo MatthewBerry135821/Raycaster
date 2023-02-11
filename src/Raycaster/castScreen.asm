@@ -149,7 +149,6 @@ _castScreen:
 		;corrects the distance to remove the fisheye effect 
 		ld hl, (fishEyeCorrectionTable)
 		ld de, (hl)
-		ld hl, (castAngleIncrement)
 
 		ld hl, 0
 		ld h, c
