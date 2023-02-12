@@ -19,9 +19,9 @@ int mapRowSize;
 uint8_t *mapPtr;
 
 uint16_t *fishEyeCorrectionTable;
-uint16_t *tanTable;
+uint8_t *tanTable;
 uint16_t *tanReciprocalTable;
-uint16_t *majorTable;
+uint8_t *majorTable;
 uint16_t heightCorrection;
 
 int drawMode;
@@ -91,7 +91,7 @@ void calculateCastScreenValues(){
 }
 uint8_t loadTables(){//loads trig table from an appvar
 	int appvarSlot;
-	int appvarSize = (360*ANGLE_MULTIPLIER*2+90*ANGLE_MULTIPLIER*2)*sizeof(uint16_t);
+	int appvarSize = (120*ANGLE_MULTIPLIER+90*ANGLE_MULTIPLIER)*sizeof(uint16_t)+(360*ANGLE_MULTIPLIER+90*ANGLE_MULTIPLIER)*sizeof(uint8_t);
 	char name[8] = "RAYTRIG0";
 
 	name[7] = 65+ANGLE_MULTIPLIER;
@@ -107,7 +107,7 @@ uint8_t loadTables(){//loads trig table from an appvar
 	
 	majorTable = ti_GetDataPtr(appvarSlot);
 	fishEyeCorrectionTable = majorTable+(360*ANGLE_MULTIPLIER)+1;
-	tanTable = fishEyeCorrectionTable+(360*ANGLE_MULTIPLIER)+1;
+	tanTable = fishEyeCorrectionTable+(120*ANGLE_MULTIPLIER)+1;
 	tanReciprocalTable = tanTable+(90*ANGLE_MULTIPLIER)+1;
 	
 	return 0;
@@ -115,7 +115,7 @@ uint8_t loadTables(){//loads trig table from an appvar
 
 uint8_t createTables(){//creates trig tables
 	int appvarSlot;
-	int appvarSize = (360*ANGLE_MULTIPLIER*2+90*ANGLE_MULTIPLIER*2)*sizeof(uint16_t);
+	int appvarSize = (120*ANGLE_MULTIPLIER+90*ANGLE_MULTIPLIER)*sizeof(uint16_t)+(360*ANGLE_MULTIPLIER+90*ANGLE_MULTIPLIER)*sizeof(uint8_t);
 	char name[8] = "RAYTRIG0";
 
 	name[7] = 65+ANGLE_MULTIPLIER;
@@ -129,7 +129,7 @@ uint8_t createTables(){//creates trig tables
 	}
 	majorTable = ti_GetDataPtr(appvarSlot);
 	fishEyeCorrectionTable = majorTable+(360*ANGLE_MULTIPLIER)+1;
-	tanTable = fishEyeCorrectionTable+(360*ANGLE_MULTIPLIER)+1;
+	tanTable = fishEyeCorrectionTable+(120*ANGLE_MULTIPLIER)+1;
 	tanReciprocalTable = tanTable+(90*ANGLE_MULTIPLIER)+1;
 	
 	for(int i = 0; i < (360*ANGLE_MULTIPLIER);++i){
@@ -145,7 +145,7 @@ uint8_t createTables(){//creates trig tables
 		tanReciprocalTable[i] = 0xFFFF/tanTable[i];
 	}
 	for(int i = 60*ANGLE_MULTIPLIER; i >= 0;--i){
-		fishEyeCorrectionTable[i] = (int)round(0x8000/cos((float)(60*ANGLE_MULTIPLIER-i)/ANGLE_MULTIPLIER*TODEG)-0x8000);
+		fishEyeCorrectionTable[i] = (int)round(0x7FFF/cos((float)(60*ANGLE_MULTIPLIER-i)/ANGLE_MULTIPLIER*TODEG));
 		fishEyeCorrectionTable[(120*ANGLE_MULTIPLIER)-i] = fishEyeCorrectionTable[i];
 	}
 	ti_Close(appvarSlot);

@@ -56,8 +56,26 @@ _castScreen:
 	ld (drawMode), hl
 	ld hl, (_castAngleIncrement)
 	ld (castAngleIncrement), hl
+	
+	ld hl, (_mapRowSize)
+	ld (mapRowSize), hl
+	ld hl, (_mapPtr)
+	ld (mapPtr), hl
+
 	ld hl, (_fovAngleIncrement)
 	ld (fovAngleIncrement), hl
+
+	ld hl, (_majorTable)
+	ld (majorTable), hl
+
+	;sets jump to compensate for 
+	ld a, 8
+	ld b, (spriteSize)
+		dec a
+		sla b
+	jr nc, $-2-1
+	add a, a
+	ld (wallSliceCorrection+1), a;sets the amount of shift rights to skip
 
 	;sets initial and end x positions based on the render width and x position
 	ld de, (_screenWidth)
@@ -98,7 +116,7 @@ _castScreen:
 		add hl, de
 	ld (castAngle), hl
 	
-	;loads the starting octant code 
+	;loads the starting octant code. this must be directly before _copyOctantToFastRam
 	call getOctant
 	ld (octant), a
 	setNextOctant
@@ -109,53 +127,49 @@ _castScreen:
 	call setupSpriteFastRam
 	call _setScreenBufferOffset
 
-	
 	xor a, a
 	ld (castAngleIncrementCounter), a
 	ld (fovAngleIncrementCounter), a
 	mainLoopStart:
 		;cast ray
 		call OCTANT_FAST_RAM_START;returns a = partial position and a' = wall type
-		;partial position is more or less which vertical slice of the wall is drawn but needs corrected based on sprite size since the size of a wall may not be equal to the sprite size
-		ld b, (spriteSize)
+
+		wallSliceCorrection:
+		jr $;gets changed to needed value to change wall slice from 0.8 fixed value representing how far into the wall to the slice of the sprite
 			srl a
-			sla b
-		jr nc, $-2-2
+			srl a
+			srl a
+			srl a
+			srl a
+			srl a
+			srl a
+			srl a
 		ld (wallSlice), a
 		
-		;loads pointer to the first pixel in the sprite for the wall hit
+		;loads pointer to the start of sprite for the wall hit
 		ex af, af'
-		ld (wallType), a
-
 		ld hl, (_spriteTilemap)
 		ld de, 0
-		dec a;wall 1=sprite 0 since 0 is no wall
+		dec a;a need decremented by 1 since a wall value of 1 means draw sprite 0
 		ld e, a
 		add hl, de
 		add hl, de
 		add hl, de
 		ld de, (hl)
-		inc de;skips width/height starting values 
+		inc de;skips width/height values
 		inc de
 		ld (wallSprite), de
 
 		;calculates distance and sets variables to next loops value
-		ld hl, (_majorTable)
+		ld hl, (majorTable)
 		ld de, (castAngle)
 		add hl, de
-		add hl, de
-		ld bc, (hl)
+		ld c, (hl); 0.8 fixed point value for sin/cos depending on the octant
 
-		;corrects the distance to remove the fisheye effect 
+		;corrects the distance to remove the fisheye effect by multiplying the major table
 		ld hl, (fishEyeCorrectionTable)
-		ld de, (hl)
-
-		ld hl, 0
-		ld h, c
-		srl h
-		rr l
+		ld hl, (hl)
 		
-		ex hl, de
 		ld b, l;c*l
 		ld l, c;h*c
 		mlt bc
@@ -163,7 +177,6 @@ _castScreen:
 		ld c, b
 		ld b, 0
 		add hl, bc
-		add hl, de
 		ex hl, de
 		
 		ld bc, (distance)
@@ -302,8 +315,11 @@ db 0
 saveSP:
 dw 0
 db 0
-		extern _fovAngleIncrement
 
+extern _fovAngleIncrement
+
+extern _mapPtr
+extern _mapRowSize
 extern lineThirdRes
 extern _drawMode
 extern _majorTable

@@ -29,7 +29,6 @@ declare spriteIncAmount, 3
 declare spritePtrPlusOffset, 3
 declare screenBufferOffset, 3
 declare drawStartPoint, 3
-declare wallType, 1
 
 declare spriteSize, 3
 declare spriteSizeReciprocal, 3
@@ -38,3 +37,10 @@ declare castAngleIncrement, 3
 declare castAngleIncrementCounter, 3
 declare fovAngleIncrement, 3
 declare fovAngleIncrementCounter, 3
+declare mapRowSize, 3
+declare mapPtr, 3
+declare majorTable, 3
+
+if variableOffset >= 127
+        err 'IX range exceeded'
+end if

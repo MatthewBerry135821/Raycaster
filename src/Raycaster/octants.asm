@@ -7,6 +7,9 @@ include "fastRamLayout.inc"
 
 public 	_copyOctantToFastRam
 	
+;finds the how far the minor direction should be in the wall (or what slice will be drawn)
+;expects hl to be major distance traveled
+;result is stored in a
 macro calcPartialMovement
 	ld c, (tanAngle)	
 	ld b, l;c*l
@@ -17,65 +20,69 @@ macro calcPartialMovement
 	add a, l
 end macro
 
-
-macro loadTangent;expects angle in de
-	ld hl, (_tanReciprocalTable)
+;loads the tangent and the reciprocal of the tangent so it can be accessed faster
+;expects angle in de
+;tangent will be in c
+macro loadTangent
+	ld hl, (_tanReciprocalTable);tanReciprocalAngle should be 8.8 fixed
 	add hl, de
 	add hl, de
 	ld bc, (hl)
 	ld (tanReciprocalAngle), bc
 	
-	ld hl, (_tanTable)
+	ld hl, (_tanTable);tanAngle should be 0.8 fixed
 	add hl, de
-	add hl, de
-	ld bc, (hl)
-	ld (tanAngle), bc
+	ld c, (hl)
+	ld (tanAngle), c
 end macro
 
-
+;expects x to be the major direction the starting y position in hl
 macro xMajorVariableSetup
 	ld e, h
-	ld b, (x+1)
-	ld iyl, e
-	xor a
+	ld b, (x+1);b should be major position
+	ld iyl, e;iyl should be minor position
+	xor a;Alt a needs to be 0 for checking against a wall to determine if the ray has hit
 	ex af, af'
-	ld a, l
-	ld hl, (_mapPtr)
+	ld a, l;A is set to the partial value of the minor position for the counter to determing when minor position moves a full space
+	ld hl, (mapPtr);Sets the y position in the map (y is sequential in memory)
 	add hl, de
-	ld de, (_mapRowSize)
+	ld e, (mapRowSize);Sets the x position in the map (x is multiplied by the row size the get is position in memory)
 	ld d, (x+1)
 	mlt de
-	add hl, de
-	ld de, (_mapRowSize)
+	add hl, de;map position should be stored in hl
+	ld de, (mapRowSize);rowSize needs to be in de for the loop to traverse the map
 end macro
 
-macro yMajorVariableSetup:;expects rayY in hl, tangent in BC
-	ld de, (_mapRowSize)
+;expects y to be the major direction the starting x position in hl
+macro yMajorVariableSetup;expects rayY in hl, tangent in BC
+	ld e, (mapRowSize)
 	ld d, h
-	ld b, (y+1)
-	ld iyl, d
-	xor a
+	ld b, (y+1);b should be major position
+	ld iyl, d;iyl should be minor position
+	xor a;Alt a is used to compare if there is a wall at the current position and needs to be 0 (or whatever represents no wall)
 	ex af, af'
-	ld a, l
-	ld hl, (_mapPtr)
+	ld a, l;the other a is also used as a counter to track when the minor position gets moved
+	ld hl, (mapPtr)
 	mlt de
 	add hl, de
-	ld d, 0
+	ld d, 0;sets x position in map
 	ld e, b
-	add hl, de
-	ld de, (_mapRowSize)
+	add hl, de;map position should be stored in hl
+	ld e, (mapRowSize);rowSize needs to be in de for the loop to traverse the map
 end macro
 
 
-	
+;copies an octant to the cursor ram for faster execution and calling all octants with the same instruction
+;expects the octant to be copied in a
 _copyOctantToFastRam:
 	ld l, a
-	ld h, 4+4+2+1
+	ld h, copyOctant1-copyOctant0
 	mlt hl
-	ld de, $+4+1+4+1
+	ld de, startOfCopying
 	add hl, de
 	ld de, OCTANT_FAST_RAM_START
 	jp (hl)
+	startOfCopying:
 	copyOctant0:
 	ld bc, endOfOctant0 - _octant0
 	ld hl, _octant0
@@ -118,6 +125,9 @@ _copyOctantToFastRam:
 	ldir
 	ret
 
+;this macro generates the code to cast a ray in a given octant
+;casting the ray will expect castAngle to be an angle that falls within the called octant and x/y to be 8.8 fixed point values for the position to cast from
+;(distance) will be set to the major distance traveled, a to the slice of the wall to be drawn, and a' to the type of wall to be drawn
 macro octantTemplate minorSign, majorSign, majorDirection
 	if majorDirection = y
 		minorDirection = x
@@ -214,67 +224,71 @@ macro octantTemplate minorSign, majorSign, majorDirection
 	jr z, .loop+1;+1 skips the ex af, af'
 
 	.hitMinor:
-		ld a, (hl)
+		ld a, (hl);the type of wall hit should be stored in the alt a register
 		ex af, af'
-		;find y distance traveled
+		;find minor distance traveled as |start position - end position|
 		xor a, a
 		ld e, a
 		ld d, iyl
 		ld hl, (minorDirection)
-		if minorSign = 1
+		if minorSign = 1;ex hl, de must be used instead of loading the values to the appropriate registers becuase ld h, iyl is invalid
 			ex hl, de
 		end if
 		sbc hl, de
-		;calc x distance traveled
+
+		;find major distance traveled as (minor distance)/tan(angle) or (minor distance) * (1/tan(angle))
 		ld bc, (tanReciprocalAngle)
 		call HL_Times_BC_ShiftedDown
-		
-		ld (distance), hl
-		ld a, (majorDirection)
-		
-		if majorSign = -1
+		ld (distance), hl;distance must always be stored at the major distance traveled
+		;finds the part of the wall to draw based on the direction that did not hit (is in between sides)
+		ld a, (majorDirection);the part of the wall to be draw should be stored in the a register
+		if majorSign = -1;adds/subtracts the partial minor distance traveld based on minor direction
 			sub a, l
 		else
 			add a, l
 		end if
-		if majorDirection = y
+
+		if majorDirection = y;fixes sign shenanigans which could result in the texture being flipped
 			if minorSign = -1
-				neg;makes sprite always render in the same direction;(1+,-)(6+,+)()
+				neg
 			end if
 		else
 			if minorSign = 1
-				neg;makes sprite always render in the same direction;(1+,-)(6+,+)()
+				neg
 			end if
 		end if
 ret
 	.hitMajor:
-		ld a, (hl)
+		ld a, (hl);the type of wall hit should be stored in the alt a register
 		ex af, af'
-		;find x distance traveled
+		;find major distance traveled as |start position - end position|
 		xor a, a
-		ld e, a
-		ld d, b
-		ld hl, (majorDirection)
-		if majorSign = 1
-			ex hl, de
+		if majorSign = 1;does sign checking since each octant will only go one direction we can just swap the order
+			sbc hl, hl
+			ld h, b
+			ld de, (majorDirection)
+		else
+			ld e, a
+			ld d, b
+			ld hl, (majorDirection)
 		end if
 		sbc hl, de
 		ld (distance), hl
-		;find the wall slice
+		;find the wall slice to be drawn which is stored in the a register
 		calcPartialMovement
-		if minorSign = 1
+		if minorSign = 1;adds/subtracts the partial minor distance traveld based on minor direction
 			add a, (minorDirection)
 		else
 			sub a, (minorDirection)
 		end if
 		
-		if majorDirection = y
+		if majorDirection = y;fixes sign shenanigans which could result in the texture being flipped
 			if majorSign = minorSign
-				neg;makes sprite always render in the same direction;(1+,-)(5-,+)	(3-,-)(7+,+)
+				neg
 			end if
 		else
 			if majorSign <> minorSign
-				neg;makes sprite always render in the same direction;(1+,-)(5-,+)	(3-,-)(7+,+)
+				neg
 			end if
 		end if
 ret
@@ -352,9 +366,7 @@ _octant7:
 endOfOctant7:
 
 
-extern _mapWidth
 extern _mapRowSize
-extern _mapPtr
 
 extern _tanReciprocalTable
 extern _tanTable
