@@ -52,6 +52,11 @@ _castScreen:
 	ld (spriteSize), hl
 	ld hl, (_spriteSizeReciprocal)
 	ld (spriteSizeReciprocal), hl
+	ld hl, (_spriteTilemap)
+	dec hl;shifts tilemap pointer so wall number matches the sprite number since a wall value of 1 means draw the first sprite or the sprite at index 0
+	dec hl
+	dec hl
+	ld (spriteTilemap), hl
 	ld hl, (_drawMode)
 	ld (drawMode), hl
 	ld hl, (_castAngleIncrement)
@@ -67,15 +72,6 @@ _castScreen:
 
 	ld hl, (_majorTable)
 	ld (majorTable), hl
-
-	;sets jump to compensate for 
-	ld a, 8
-	ld b, (spriteSize)
-		dec a
-		sla b
-	jr nc, $-2-1
-	add a, a
-	ld (wallSliceCorrection+1), a;sets the amount of shift rights to skip
 
 	;sets initial and end x positions based on the render width and x position
 	ld de, (_screenWidth)
@@ -133,24 +129,14 @@ _castScreen:
 	mainLoopStart:
 		;cast ray
 		call OCTANT_FAST_RAM_START;returns a = partial position and a' = wall type
-
-		wallSliceCorrection:
-		jr $;gets changed to needed value to change wall slice from 0.8 fixed value representing how far into the wall to the slice of the sprite
-			srl a
-			srl a
-			srl a
-			srl a
-			srl a
-			srl a
-			srl a
-			srl a
-		ld (wallSlice), a
-		
+		ld e, (spriteSize)
+		ld d, a
+		mlt de
+		ld (wallSlice), d
 		;loads pointer to the start of sprite for the wall hit
 		ex af, af'
-		ld hl, (_spriteTilemap)
-		ld de, 0
-		dec a;a need decremented by 1 since a wall value of 1 means draw sprite 0
+		ld hl, (spriteTilemap)
+		ld d, 0;de will be a 8.8 postion after calling an octant so just setting d to 0 has the same effect as ld de, 0
 		ld e, a
 		add hl, de
 		add hl, de
@@ -169,7 +155,7 @@ _castScreen:
 		;corrects the distance to remove the fisheye effect by multiplying the major table
 		ld hl, (fishEyeCorrectionTable)
 		ld hl, (hl)
-		
+
 		ld b, l;c*l
 		ld l, c;h*c
 		mlt bc

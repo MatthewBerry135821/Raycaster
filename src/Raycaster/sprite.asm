@@ -455,5 +455,4 @@ scaleUpLoop_Clipped:
 
 extern _yOffset
 extern _screenHeight
-extern _spriteTilemap
 extern _screenAddressingWidth

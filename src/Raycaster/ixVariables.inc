@@ -32,6 +32,7 @@ declare drawStartPoint, 3
 
 declare spriteSize, 3
 declare spriteSizeReciprocal, 3
+declare spriteTilemap, 3
 declare drawMode, 3
 declare castAngleIncrement, 3
 declare castAngleIncrementCounter, 3

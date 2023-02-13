@@ -153,6 +153,7 @@ macro octantTemplate minorSign, majorSign, majorDirection
 	ld d, 0
 	ld hl, (minorDirection)
 	if minorSign = 1
+		or a, a
 		sbc hl, de
 	else
 		add hl, de
@@ -170,7 +171,7 @@ macro octantTemplate minorSign, majorSign, majorDirection
 
 	if minorSign = -1
 		inc iyl; if x is negative
-		sbc a, c
+		sub a, c
 	else
 		add a, c
 	end if
@@ -198,7 +199,7 @@ macro octantTemplate minorSign, majorSign, majorDirection
 
 		ex af, af'
 		if minorSign = -1
-			sbc a, c
+			sub a, c
 		else
 			add a, c
 		end if
@@ -206,7 +207,7 @@ macro octantTemplate minorSign, majorSign, majorDirection
 	.moveMinor:
 		ex af, af'
 		if minorSign = -1
-			if majorDirection = y
+			if majorDirection = y				
 				sbc hl, de
 			else
 				dec hl;hl points to map position
@@ -281,7 +282,6 @@ ret
 		else
 			sub a, (minorDirection)
 		end if
-		
 		if majorDirection = y;fixes sign shenanigans which could result in the texture being flipped
 			if majorSign = minorSign
 				neg

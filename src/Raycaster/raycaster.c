@@ -145,7 +145,7 @@ uint8_t createTables(){//creates trig tables
 		tanReciprocalTable[i] = 0xFFFF/tanTable[i];
 	}
 	for(int i = 60*ANGLE_MULTIPLIER; i >= 0;--i){
-		fishEyeCorrectionTable[i] = (int)round(0x7FFF/cos((float)(60*ANGLE_MULTIPLIER-i)/ANGLE_MULTIPLIER*TODEG));
+		fishEyeCorrectionTable[i] = (int)round(0x7FFF/cos((float)(60*ANGLE_MULTIPLIER-i)/ANGLE_MULTIPLIER*TODEG));//cos(0)-cos(60) wont go below 0.50 so multiplying the reciprocal by 2^15 is the highest that wont overflow. it should be 2^16 or 2^8 but spriteSizeReciprocal is made twice as big to make up for it
 		fishEyeCorrectionTable[(120*ANGLE_MULTIPLIER)-i] = fishEyeCorrectionTable[i];
 	}
 	ti_Close(appvarSlot);
