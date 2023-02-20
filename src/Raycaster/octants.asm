@@ -225,7 +225,7 @@ macro octantTemplate minorSign, majorSign, majorDirection
 	jr z, .loop+1;+1 skips the ex af, af'
 
 	.hitMinor:
-		ld a, (hl);the type of wall hit should be stored in the alt a register
+	ld a, (hl);the type of wall hit should be stored in the alt a register
 		ex af, af'
 		;find minor distance traveled as |start position - end position|
 		xor a, a
@@ -240,8 +240,8 @@ macro octantTemplate minorSign, majorSign, majorDirection
 		;find major distance traveled as (minor distance)/tan(angle) or (minor distance) * (1/tan(angle))
 		ld bc, (tanReciprocalAngle)
 		call HL_Times_BC_ShiftedDown
-		ld (distance), hl;distance must always be stored at the major distance traveled
-		;finds the part of the wall to draw based on the direction that did not hit (is in between sides)
+		ld (distance), hl;distance must always be stored as the major distance traveled
+				;finds the part of the wall to draw based on the direction that did not hit (is in between sides)
 		ld a, (majorDirection);the part of the wall to be draw should be stored in the a register
 		if majorSign = -1;adds/subtracts the partial minor distance traveld based on minor direction
 			sub a, l
@@ -263,34 +263,21 @@ ret
 		ld a, (hl);the type of wall hit should be stored in the alt a register
 		ex af, af'
 		;find major distance traveled as |start position - end position|
-		xor a, a
+		or a, a
 		if majorSign = 1;does sign checking since each octant will only go one direction we can just swap the order
 			sbc hl, hl
 			ld h, b
 			ld de, (majorDirection)
 		else
-			ld e, a
+			ld e, 0
 			ld d, b
 			ld hl, (majorDirection)
 		end if
 		sbc hl, de
 		ld (distance), hl
-		;find the wall slice to be drawn which is stored in the a register
-		calcPartialMovement
-		if minorSign = 1;adds/subtracts the partial minor distance traveld based on minor direction
-			add a, (minorDirection)
-		else
-			sub a, (minorDirection)
-		end if
-		if majorDirection = y;fixes sign shenanigans which could result in the texture being flipped
-			if majorSign = minorSign
-				neg
-			end if
-		else
-			if majorSign <> minorSign
-				neg
-			end if
-		end if
+		;find the wall slice to be drawn which is stored in the a register		
+		neg
+		dec a
 ret
 end macro
 
@@ -345,7 +332,7 @@ _octant3:
 	ex hl,de
 	octantTemplate -1, -1, x
 endOfOctant3:
-	
+
 _octant4:
 	ld hl, (castAngle);set angle as angle within octant
 	ld de, 180*ANGLE_MULTIPLIER
