@@ -5,8 +5,6 @@ include "raycaster.inc"
 include "ixVariables.inc"
 include "fastRamLayout.inc"
 
-public	_castScreen
-
 
 macro setNextOctant
 	ld b, a
@@ -28,6 +26,7 @@ macro HLxC
 	add hl, bc
 end macro
 
+public	_castScreen
 _castScreen:
 	;saves ix and iy to be used for variable access and as an extra register
 	ld (saveIX), ix
@@ -112,7 +111,7 @@ _castScreen:
 		add hl, de
 	ld (castAngle), hl
 	
-	;loads the starting octant code. this must be directly before _copyOctantToFastRam
+	;loads the starting octant code. this must be directly before _copyOctantToFastRam (a must be set to the octant when called)
 	call getOctant
 	ld (octant), a
 	setNextOctant
@@ -146,7 +145,7 @@ _castScreen:
 		inc de
 		ld (wallSprite), de
 
-		;calculates distance and sets variables to next loops value
+		;calculates distance
 		ld hl, (majorTable)
 		ld de, (castAngle)
 		add hl, de
@@ -166,7 +165,7 @@ _castScreen:
 		ex hl, de
 		
 		ld bc, (distance)
-		call DIV_16		;HL=DE/BC
+		call DIV_16;HL=DE/BC
 		
 		;corrects the height to remove the FOV effect
 		ld bc, (_heightCorrection)
@@ -239,10 +238,7 @@ _castScreen:
 	ld IX, (saveIX)
 	ld IY, (saveIY)
 ret
-nextAngle:
-db 0
-db 0
-db 0
+
 drawSpriteScaled:
 	;jumps to drawing routine based on if it needs to be clipped and if the sprite is scaling up or down
 	or a, a
@@ -258,12 +254,12 @@ drawSpriteScaled:
 
 
 
+public getOctant
 getOctant:
 ;input:
 ;hl = angle
 ;out:
 ;a = octant angle is in
-	
 	ld de, 45*ANGLE_MULTIPLIER
 	xor a,a
 	sbc	hl ,de
@@ -306,7 +302,6 @@ extern _fovAngleIncrement
 
 extern _mapPtr
 extern _mapRowSize
-extern lineThirdRes
 extern _drawMode
 extern _majorTable
 extern _fishEyeCorrectionTable
